@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: db_postgres
+    environment:
+      POSTGRES_DB: systembank
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - systembank_net
+
+  backend:
+    build: ./backend
+    container_name: backend_app
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: systembank
+      DB_USER: admin
+      DB_PASSWORD: admin123
+    ports:
+      - "3000:3000"
+    networks:
+      - systembank_net
+
+  frontend:
+    build:
+      context: .  # OJO aquí
+      dockerfile: Dockerfile.frontend
+    container_name: frontend_app
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - systembank_net
+
+volumes:
+  postgres_data:
+
+networks:
+  systembank_net:
+    driver: bridge

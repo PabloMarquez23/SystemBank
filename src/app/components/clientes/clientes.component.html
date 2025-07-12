@@ -1,0 +1,29 @@
+<h2>Gestión de Clientes</h2>
+
+<form (ngSubmit)="agregarCliente()" *ngIf="!editando">
+  <input [(ngModel)]="nuevoCliente.cedula" name="cedula" placeholder="Cédula" required>
+  <input [(ngModel)]="nuevoCliente.nombre" name="nombre" placeholder="Nombre" required>
+  <input [(ngModel)]="nuevoCliente.apellido" name="apellido" placeholder="Apellido" required>
+  <input [(ngModel)]="nuevoCliente.correo" name="correo" placeholder="Correo" required>
+  <input [(ngModel)]="nuevoCliente.direccion" name="direccion" placeholder="Dirección" required>
+  <button type="submit">Agregar</button>
+</form>
+
+<form (ngSubmit)="actualizarCliente()" *ngIf="editando">
+  <input [(ngModel)]="nuevoCliente.cedula" name="cedula" placeholder="Cédula" required>
+  <input [(ngModel)]="nuevoCliente.nombre" name="nombre" placeholder="Nombre" required>
+  <input [(ngModel)]="nuevoCliente.apellido" name="apellido" placeholder="Apellido" required>
+  <input [(ngModel)]="nuevoCliente.correo" name="correo" placeholder="Correo" required>
+  <input [(ngModel)]="nuevoCliente.direccion" name="direccion" placeholder="Dirección" required>
+  <button type="submit">Actualizar</button>
+  <button type="button" (click)="cancelarEdicion()">Cancelar</button>
+</form>
+
+
+<ul>
+  <li *ngFor="let cliente of clientes">
+    {{ cliente.cedula }} - {{ cliente.nombre }} {{ cliente.apellido }} - {{ cliente.correo }} - {{ cliente.direccion }}
+    <button (click)="editarCliente(cliente)">Modificar</button>
+    <button (click)="eliminarCliente(cliente.id)">Eliminar</button>
+  </li>
+</ul>

@@ -1,0 +1,18 @@
+<h2>Gestión de Cuentas</h2>
+
+<!-- Buscar -->
+<input type="text" [(ngModel)]="cedulaBusqueda" placeholder="Cédula del cliente">
+<button (click)="buscarCuenta()">Buscar Cuenta</button>
+
+<div *ngIf="cuenta">
+  <p><strong>Número de cuenta:</strong> {{ cuenta.numero_cuenta }}</p>
+  <p><strong>Saldo:</strong> ${{ cuenta.saldo }}</p>
+</div>
+<p *ngIf="error" style="color: red">{{ error }}</p>
+
+<!-- Crear cuenta -->
+<h3>Crear Nueva Cuenta</h3>
+<input type="text" [(ngModel)]="cuentaNueva.cedula" placeholder="Cédula del cliente">
+<input type="text" [(ngModel)]="cuentaNueva.numeroCuenta" placeholder="Número de cuenta">
+<input type="number" [(ngModel)]="cuentaNueva.saldo" placeholder="Saldo inicial">
+<button (click)="crearCuenta()">Crear Cuenta</button>
