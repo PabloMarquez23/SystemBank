@@ -20,7 +20,7 @@ app.use(express.json());
 /**
  * CLIENTES
  */
-app.get('/clientes', async (req, res) => {
+app.get('/api/clientes', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM clientes');
     res.json(result.rows);
@@ -30,7 +30,7 @@ app.get('/clientes', async (req, res) => {
   }
 });
 
-app.post('/clientes', (req, res) => {
+app.post('/api/clientes', (req, res) => {
   const { cedula, nombre, apellido, correo, direccion } = req.body;
   const query = 'INSERT INTO clientes (cedula, nombre, apellido, correo, direccion) VALUES ($1, $2, $3, $4, $5)';
   pool.query(query, [cedula, nombre, apellido, correo, direccion], (err, result) => {
@@ -38,16 +38,12 @@ app.post('/clientes', (req, res) => {
       console.error(err);
       res.status(500).send('Error al crear cliente');
     } else {
-      // Aquí está el cambio:
       res.status(201).json({ message: 'Cliente creado correctamente' });
     }
   });
 });
 
-
-
-// Actualizar cliente
-app.put('/clientes/:id', async (req, res) => {
+app.put('/api/clientes/:id', async (req, res) => {
   const { id } = req.params;
   const { cedula, nombre, apellido, correo, direccion } = req.body;
 
@@ -56,18 +52,14 @@ app.put('/clientes/:id', async (req, res) => {
       'UPDATE clientes SET cedula=$1, nombre=$2, apellido=$3, correo=$4, direccion=$5 WHERE id=$6',
       [cedula, nombre, apellido, correo, direccion, id]
     );
-
-    res.status(200).json({ message: 'Cliente actualizado' });  // ✅ debe ser .json()
+    res.status(200).json({ message: 'Cliente actualizado' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error al actualizar cliente' });
   }
 });
 
-
-
-// Eliminar cliente
-app.delete('/clientes/:id', async (req, res) => {
+app.delete('/api/clientes/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM clientes WHERE id = $1', [req.params.id]);
     res.status(204).send();
@@ -77,8 +69,7 @@ app.delete('/clientes/:id', async (req, res) => {
   }
 });
 
-// Buscar cliente por cédula
-app.get('/clientes/cedula/:cedula', (req, res) => {
+app.get('/api/clientes/cedula/:cedula', (req, res) => {
   const cedula = req.params.cedula;
   const query = 'SELECT * FROM clientes WHERE cedula = $1';
   pool.query(query, [cedula], (err, result) => {
@@ -92,11 +83,9 @@ app.get('/clientes/cedula/:cedula', (req, res) => {
   });
 });
 
-
 /**
  * CUENTAS
  */
-// Crear cuenta
 app.post('/api/cuentas', async (req, res) => {
   const { numero_cuenta, cliente_id, saldo } = req.body;
 
@@ -112,7 +101,6 @@ app.post('/api/cuentas', async (req, res) => {
   }
 });
 
-// Buscar cuenta por cédula
 app.get('/api/cuentas/cedula/:cedula', async (req, res) => {
   const { cedula } = req.params;
 
@@ -139,11 +127,10 @@ app.get('/api/cuentas/cedula/:cedula', async (req, res) => {
   }
 });
 
-
 /**
  * TRANSFERENCIAS
  */
-app.post('/transferencias', async (req, res) => {
+app.post('/api/transferencias', async (req, res) => {
   const { origen, destino, monto } = req.body;
 
   const client = await pool.connect();
@@ -188,7 +175,7 @@ app.post('/transferencias', async (req, res) => {
   }
 });
 
-app.get('/transferencias', async (req, res) => {
+app.get('/api/transferencias', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM transferencias ORDER BY fecha DESC');
     res.json(result.rows);

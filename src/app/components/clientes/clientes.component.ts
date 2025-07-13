@@ -8,7 +8,7 @@ import { RouterModule, RouterOutlet } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule,RouterModule],
   templateUrl: './clientes.component.html',
-  styleUrl: './clientes.component.scss'
+  styleUrls: ['./clientes.component.scss']  // ✅
 })
 
 export class ClientesComponent implements OnInit {

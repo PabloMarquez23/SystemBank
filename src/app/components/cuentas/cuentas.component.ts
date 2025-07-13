@@ -8,7 +8,7 @@ import { RouterModule, RouterOutlet } from '@angular/router';
   standalone: true,
   imports: [CommonModule,FormsModule,RouterModule],
   templateUrl: './cuentas.component.html',
-  styleUrl: './cuentas.component.scss'
+  styleUrls: ['./cuentas.component.scss']
 })
 export class CuentasComponent {
   cedulaBusqueda = '';
