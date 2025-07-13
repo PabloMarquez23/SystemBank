@@ -1,50 +1,100 @@
 version: '3.8'
+
 services:
-  postgres:
-    image: postgres:15
-    container_name: db_postgres
+  postgres_primary:
+    image: bitnami/postgresql:15
+    container_name: postgres_primary
     environment:
-      POSTGRES_DB: systembank
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_pass
+      - POSTGRESQL_USERNAME=admin
+      - POSTGRESQL_PASSWORD=admin123
+      - POSTGRESQL_DATABASE=systembank
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_master_data:/bitnami/postgresql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     networks:
       - systembank_net
 
-  backend:
-    build: ./backend
-    container_name: backend_app
+  postgres_secondary:
+    image: bitnami/postgresql:15
+    container_name: postgres_secondary
     depends_on:
-      - postgres
+      - postgres_primary
     environment:
-      DB_HOST: postgres
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_pass
+      - POSTGRESQL_MASTER_HOST=postgres_primary
+      - POSTGRESQL_PASSWORD=admin123
+    volumes:
+      - postgres_slave_data:/bitnami/postgresql
+    networks:
+      - systembank_net
+
+  backend1:
+    build: ./backend
+    container_name: backend_app1
+    depends_on:
+      - postgres_primary
+    environment:
+      DB_HOST: postgres_primary
       DB_PORT: 5432
       DB_NAME: systembank
       DB_USER: admin
       DB_PASSWORD: admin123
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     networks:
       - systembank_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend2:
+    build: ./backend
+    container_name: backend_app2
+    depends_on:
+      - postgres_primary
+    environment:
+      DB_HOST: postgres_primary
+      DB_PORT: 5432
+      DB_NAME: systembank
+      DB_USER: admin
+      DB_PASSWORD: admin123
+    expose:
+      - "3000"
+    networks:
+      - systembank_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   frontend:
     build:
-      context: .  # OJO aquí
+      context: .
       dockerfile: Dockerfile.frontend
     container_name: frontend_app
     ports:
-      - "4200:80"
+      - "8080:80"
     depends_on:
-      - backend
+      - backend1
+      - backend2
+    volumes:
+      - ./nginx/load-balancer.conf:/etc/nginx/conf.d/default.conf
     networks:
       - systembank_net
 
 volumes:
-  postgres_data:
+  postgres_master_data:
+  postgres_slave_data:
 
 networks:
   systembank_net:
