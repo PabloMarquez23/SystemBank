@@ -5,13 +5,39 @@ const PORT = 3000;
 
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'admin',
-  password: process.env.DB_PASSWORD || 'admin123',
-  database: process.env.DB_NAME || 'systembank',
-  port: process.env.DB_PORT || 5432,
-});
+let pool;
+
+async function initializePool() {
+  try {
+    // Intentar conexión al primario
+    pool = new Pool({
+      host: process.env.DB_HOST || 'postgres_primary',
+      user: process.env.DB_USER || 'admin',
+      password: process.env.DB_PASSWORD || 'admin123',
+      database: process.env.DB_NAME || 'systembank',
+      port: process.env.DB_PORT || 5432,
+    });
+    await pool.query('SELECT 1');
+    console.log('Conectado a la base de datos primaria');
+  } catch (error) {
+    console.warn('Error con la base de datos primaria. Intentando secundaria...');
+    // Intentar conexión al secundario
+    pool = new Pool({
+      host: 'postgres_secondary',
+      user: process.env.DB_USER || 'admin',
+      password: process.env.DB_PASSWORD || 'admin123',
+      database: process.env.DB_NAME || 'systembank',
+      port: process.env.DB_PORT || 5432,
+    });
+    try {
+      await pool.query('SELECT 1');
+      console.log('Conectado a la base de datos secundaria');
+    } catch (err) {
+      console.error('No se pudo conectar a ninguna base de datos');
+      process.exit(1);
+    }
+  }
+}
 
 // Middlewares
 app.use(cors());
@@ -341,6 +367,7 @@ app.get('/api/retiros', async (req, res) => {
 });
 
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
+  await initializePool();
   console.log(`Servidor backend corriendo en puerto ${PORT}`);
 });
