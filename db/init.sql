@@ -19,12 +19,26 @@ CREATE TABLE cuentas (
 );
 
 
-
-
 CREATE TABLE IF NOT EXISTS transferencias (
   id SERIAL PRIMARY KEY,
   origen INTEGER REFERENCES cuentas(id),
   destino INTEGER REFERENCES cuentas(id),
+  monto NUMERIC NOT NULL,
+  fecha TIMESTAMP DEFAULT NOW()
+);
+
+-- Tabla de depósitos
+CREATE TABLE IF NOT EXISTS depositos (
+  id SERIAL PRIMARY KEY,
+  cuenta_id INTEGER REFERENCES cuentas(id),
+  monto NUMERIC NOT NULL,
+  fecha TIMESTAMP DEFAULT NOW()
+);
+
+-- Tabla de retiros
+CREATE TABLE IF NOT EXISTS retiros (
+  id SERIAL PRIMARY KEY,
+  cuenta_id INTEGER REFERENCES cuentas(id),
   monto NUMERIC NOT NULL,
   fecha TIMESTAMP DEFAULT NOW()
 );

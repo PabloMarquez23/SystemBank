@@ -185,6 +185,82 @@ app.get('/api/transferencias', async (req, res) => {
   }
 });
 
+
+// ========================
+// DEPOSITOS
+// ========================
+app.post('/api/depositos', async (req, res) => {
+  const { cuenta_id, monto } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, cuenta_id]);
+    const result = await client.query(
+      'INSERT INTO depositos (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
+      [cuenta_id, monto]
+    );
+    await client.query('COMMIT');
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error al realizar depósito' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/depositos', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM depositos ORDER BY fecha DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener depósitos' });
+  }
+});
+
+// ========================
+// RETIROS
+// ========================
+app.post('/api/retiros', async (req, res) => {
+  const { cuenta_id, monto } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const resultCuenta = await client.query('SELECT saldo FROM cuentas WHERE id = $1 FOR UPDATE', [cuenta_id]);
+    if (resultCuenta.rows.length === 0 || resultCuenta.rows[0].saldo < monto) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Saldo insuficiente o cuenta inexistente' });
+    }
+    await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, cuenta_id]);
+    const result = await client.query(
+      'INSERT INTO retiros (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
+      [cuenta_id, monto]
+    );
+    await client.query('COMMIT');
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Error al realizar retiro' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/retiros', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM retiros ORDER BY fecha DESC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener retiros' });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor backend corriendo en puerto ${PORT}`);
 });
