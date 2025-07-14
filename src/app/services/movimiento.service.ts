@@ -7,15 +7,18 @@ export class MovimientoService {
 
   constructor(private http: HttpClient) {}
 
-  transferir(data: { origen: number, destino: number, monto: number }) {
+  // Transferencia usa número de cuenta (no ID)
+  transferir(data: { numero_origen: string, numero_destino: string, monto: number }) {
     return this.http.post(`${this.apiUrl}/transferencias`, data);
   }
 
-  depositar(data: { cuenta_id: number, monto: number }) {
+  // Depósito usa número de cuenta
+  depositar(data: { numero_cuenta: string, monto: number }) {
     return this.http.post(`${this.apiUrl}/depositos`, data);
   }
 
-  retirar(data: { cuenta_id: number, monto: number }) {
+  // Retiro usa número de cuenta
+  retirar(data: { numero_cuenta: string, monto: number }) {
     return this.http.post(`${this.apiUrl}/retiros`, data);
   }
 

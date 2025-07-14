@@ -6,13 +6,13 @@
     <h3>Transferencia</h3>
     <form (ngSubmit)="realizarTransferencia()">
       <label>Cuenta Origen:</label>
-      <input [(ngModel)]="transferencia.origen" name="origen" type="number" required>
+      <input [(ngModel)]="transferencia.numero_origen" name="numero_origen" type="text" required>
 
       <label>Cuenta Destino:</label>
-      <input [(ngModel)]="transferencia.destino" name="destino" type="number" required>
+      <input [(ngModel)]="transferencia.numero_destino" name="numero_destino" type="text" required>
 
       <label>Monto:</label>
-      <input [(ngModel)]="transferencia.monto" name="monto" type="number" required>
+      <input [(ngModel)]="transferencia.monto" name="monto_trans" type="number" required>
 
       <button type="submit">Transferir</button>
     </form>
@@ -23,7 +23,7 @@
     <h3>Depósito</h3>
     <form (ngSubmit)="realizarDeposito()">
       <label>Cuenta:</label>
-      <input [(ngModel)]="deposito.cuenta_id" name="cuenta_id_dep" type="number" required>
+      <input [(ngModel)]="deposito.numero_cuenta" name="numero_cuenta_dep" type="text" required>
 
       <label>Monto:</label>
       <input [(ngModel)]="deposito.monto" name="monto_dep" type="number" required>
@@ -37,7 +37,7 @@
     <h3>Retiro</h3>
     <form (ngSubmit)="realizarRetiro()">
       <label>Cuenta:</label>
-      <input [(ngModel)]="retiro.cuenta_id" name="cuenta_id_ret" type="number" required>
+      <input [(ngModel)]="retiro.numero_cuenta" name="numero_cuenta_ret" type="text" required>
 
       <label>Monto:</label>
       <input [(ngModel)]="retiro.monto" name="monto_ret" type="number" required>
@@ -46,56 +46,35 @@
     </form>
   </div>
 
-
-  <div class="list-section">
-    <h3>Historial de Transferencias</h3>
-    <ul>
-      <li *ngFor="let t of transferencias">
-        {{ t.fecha }} - Origen: {{ t.origen }} - Destino: {{ t.destino }} - Monto: {{ t.monto }}
-      </li>
-    </ul>
-
-    <h3>Historial de Depósitos</h3>
-    <ul>
-      <li *ngFor="let d of depositos">
-        {{ d.fecha }} - Cuenta: {{ d.cuenta_id }} - Monto: {{ d.monto }}
-      </li>
-    </ul>
-
-    <h3>Historial de Retiros</h3>
-    <ul>
-      <li *ngFor="let r of retiros">
-        {{ r.fecha }} - Cuenta: {{ r.cuenta_id }} - Monto: {{ r.monto }}
-      </li>
-    </ul>
-  </div>
-</div>
-<!-- Resumen de Transferencias -->
-<div class="form-section">
+ <div class="list-section">
+  <!-- TRANSFERENCIAS -->
   <h3>Historial de Transferencias</h3>
   <ul>
     <li *ngFor="let t of transferencias">
-      De {{ t.origen }} a {{ t.destino }} - ${{ t.monto }} - {{ t.fecha | date:'short' }}
+      {{ t.fecha | date:'short' }} - 
+      Origen: {{ t.cliente_origen }} ({{ t.cuenta_origen }}) →
+      Destino: {{ t.cliente_destino }} ({{ t.cuenta_destino }}) -
+      Monto: ${{ t.monto }}
     </li>
   </ul>
-</div>
 
-<!-- Resumen de Depósitos -->
-<div class="form-section">
+  <!-- DEPÓSITOS -->
   <h3>Historial de Depósitos</h3>
   <ul>
     <li *ngFor="let d of depositos">
-      Cuenta {{ d.cuenta_id }} - ${{ d.monto }} - {{ d.fecha | date:'short' }}
+      {{ d.fecha | date:'short' }} - 
+      Cliente: {{ d.cliente }} (Cuenta {{ d.numero_cuenta }}) -
+      Monto: ${{ d.monto }}
     </li>
   </ul>
-</div>
 
-<!-- Resumen de Retiros -->
-<div class="form-section">
+  <!-- RETIROS -->
   <h3>Historial de Retiros</h3>
   <ul>
     <li *ngFor="let r of retiros">
-      Cuenta {{ r.cuenta_id }} - ${{ r.monto }} - {{ r.fecha | date:'short' }}
+      {{ r.fecha | date:'short' }} - 
+      Cliente: {{ r.cliente }} (Cuenta {{ r.numero_cuenta }}) -
+      Monto: ${{ r.monto }}
     </li>
   </ul>
 </div>

@@ -131,37 +131,39 @@ app.get('/api/cuentas/cedula/:cedula', async (req, res) => {
  * TRANSFERENCIAS
  */
 app.post('/api/transferencias', async (req, res) => {
-  const { origen, destino, monto } = req.body;
+  const { numero_origen, numero_destino, monto } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const origenCuenta = await client.query(
-      'SELECT * FROM cuentas WHERE id = $1 FOR UPDATE',
-      [origen]
-    );
-    const destinoCuenta = await client.query(
-      'SELECT * FROM cuentas WHERE id = $1 FOR UPDATE',
-      [destino]
-    );
+    // Obtener cuentas por número
+    const origenRes = await client.query('SELECT id, saldo FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_origen]);
+    const destinoRes = await client.query('SELECT id FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_destino]);
 
-    if (origenCuenta.rows.length === 0 || destinoCuenta.rows.length === 0) {
+    if (origenRes.rows.length === 0 || destinoRes.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Cuentas inválidas' });
+      return res.status(400).json({ error: 'Número de cuenta inválido' });
     }
 
-    if (origenCuenta.rows[0].saldo < monto) {
+    const origenId = origenRes.rows[0].id;
+    const destinoId = destinoRes.rows[0].id;
+    const saldoOrigen = origenRes.rows[0].saldo;
+
+    // Verificar fondos
+    if (saldoOrigen < monto) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Fondos insuficientes' });
     }
 
-    await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, origen]);
-    await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, destino]);
+    // Actualizar saldos
+    await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, origenId]);
+    await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, destinoId]);
 
+    // Registrar transferencia
     const result = await client.query(
       'INSERT INTO transferencias (origen, destino, monto, fecha) VALUES ($1, $2, $3, NOW()) RETURNING *',
-      [origen, destino, monto]
+      [origenId, destinoId, monto]
     );
 
     await client.query('COMMIT');
@@ -175,31 +177,35 @@ app.post('/api/transferencias', async (req, res) => {
   }
 });
 
-app.get('/api/transferencias', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM transferencias ORDER BY fecha DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al obtener transferencias' });
-  }
-});
-
-
 // ========================
-// DEPOSITOS
+// DEPÓSITOS
 // ========================
 app.post('/api/depositos', async (req, res) => {
-  const { cuenta_id, monto } = req.body;
+  const { numero_cuenta, monto } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // Buscar la cuenta por su número
+    const cuentaRes = await client.query('SELECT id FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_cuenta]);
+
+    if (cuentaRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cuenta no encontrada' });
+    }
+
+    const cuenta_id = cuentaRes.rows[0].id;
+
+    // Actualizar saldo
     await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, cuenta_id]);
+
+    // Registrar depósito
     const result = await client.query(
       'INSERT INTO depositos (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
       [cuenta_id, monto]
     );
+
     await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -211,35 +217,42 @@ app.post('/api/depositos', async (req, res) => {
   }
 });
 
-app.get('/api/depositos', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM depositos ORDER BY fecha DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al obtener depósitos' });
-  }
-});
-
 // ========================
 // RETIROS
 // ========================
 app.post('/api/retiros', async (req, res) => {
-  const { cuenta_id, monto } = req.body;
+  const { numero_cuenta, monto } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const resultCuenta = await client.query('SELECT saldo FROM cuentas WHERE id = $1 FOR UPDATE', [cuenta_id]);
-    if (resultCuenta.rows.length === 0 || resultCuenta.rows[0].saldo < monto) {
+
+    // Buscar la cuenta por su número
+    const cuentaRes = await client.query('SELECT id, saldo FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_cuenta]);
+
+    if (cuentaRes.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Saldo insuficiente o cuenta inexistente' });
+      return res.status(400).json({ error: 'Cuenta no encontrada' });
     }
+
+    const cuenta_id = cuentaRes.rows[0].id;
+    const saldoActual = cuentaRes.rows[0].saldo;
+
+    // Verificar si hay saldo suficiente
+    if (saldoActual < monto) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Fondos insuficientes' });
+    }
+
+    // Actualizar saldo
     await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, cuenta_id]);
+
+    // Registrar retiro
     const result = await client.query(
       'INSERT INTO retiros (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
       [cuenta_id, monto]
     );
+
     await client.query('COMMIT');
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -251,15 +264,82 @@ app.post('/api/retiros', async (req, res) => {
   }
 });
 
+// ========================
+// HISTORIAL TRANSFERENCIAS
+// ========================
+app.get('/api/transferencias', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        t.id,
+        c1.numero_cuenta AS cuenta_origen,
+        cli1.nombre AS cliente_origen,
+        c2.numero_cuenta AS cuenta_destino,
+        cli2.nombre AS cliente_destino,
+        t.monto,
+        t.fecha
+      FROM transferencias t
+      JOIN cuentas c1 ON t.origen = c1.id
+      JOIN clientes cli1 ON c1.cliente_id = cli1.id
+      JOIN cuentas c2 ON t.destino = c2.id
+      JOIN clientes cli2 ON c2.cliente_id = cli2.id
+      ORDER BY t.fecha DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener transferencias' });
+  }
+});
+
+// ========================
+// HISTORIAL DEPÓSITOS
+// ========================
+app.get('/api/depositos', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        d.id,
+        c.numero_cuenta,
+        cli.nombre AS cliente,
+        d.monto,
+        d.fecha
+      FROM depositos d
+      JOIN cuentas c ON d.cuenta_id = c.id
+      JOIN clientes cli ON c.cliente_id = cli.id
+      ORDER BY d.fecha DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener depósitos' });
+  }
+});
+
+// ========================
+// HISTORIAL RETIROS
+// ========================
 app.get('/api/retiros', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM retiros ORDER BY fecha DESC');
+    const result = await pool.query(`
+      SELECT 
+        r.id,
+        c.numero_cuenta,
+        cli.nombre AS cliente,
+        r.monto,
+        r.fecha
+      FROM retiros r
+      JOIN cuentas c ON r.cuenta_id = c.id
+      JOIN clientes cli ON c.cliente_id = cli.id
+      ORDER BY r.fecha DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener retiros' });
   }
 });
+
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor backend corriendo en puerto ${PORT}`);
