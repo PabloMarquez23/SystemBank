@@ -1,5 +1,4 @@
 
-````
 ##  Cómo levantar la aplicación
 
 Para poner en marcha la aplicación, sigue estos pasos:
@@ -7,6 +6,7 @@ Para poner en marcha la aplicación, sigue estos pasos:
 ### 1. Construir la aplicación Angular en modo producción
 
 ```bash
+nmp install
 ng build --configuration production
 ````
 
