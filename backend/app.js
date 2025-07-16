@@ -14,7 +14,7 @@ async function initializePool() {
   const tryConnect = async (host, label) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🔄 Intentando conexión a ${label} (intento ${attempt}/${maxRetries})...`);
+        console.log(`Intentando conexión a ${label} (intento ${attempt}/${maxRetries})...`);
         const tempPool = new Pool({
           host,
           user: process.env.DB_USER || 'admin',
@@ -24,10 +24,10 @@ async function initializePool() {
         });
 
         await tempPool.query('SELECT 1');
-        console.log(`✅ Conexión exitosa a ${label}`);
+        console.log(`Conexión exitosa a ${label}`);
         return tempPool;
       } catch (error) {
-        console.error(`❌ Fallo al conectar con ${label}: ${error.message}`);
+        console.error(`Fallo al conectar con ${label}: ${error.message}`);
         await wait(1000 * attempt);
       }
     }
@@ -36,12 +36,12 @@ async function initializePool() {
 
   pool = await tryConnect('postgres_primary', 'base de datos primaria');
   if (!pool) {
-    console.warn('⚠️ No se pudo conectar a la base primaria. Probando con la secundaria...');
+    console.warn('No se pudo conectar a la base primaria. Probando con la secundaria...');
     pool = await tryConnect('postgres_secondary', 'base de datos secundaria');
   }
 
   if (!pool) {
-    console.error('🛑 No se pudo conectar a ninguna base de datos. Abortando backend.');
+    console.error('No se pudo conectar a ninguna base de datos. Abortando backend.');
     process.exit(1);
   }
 }
@@ -343,5 +343,5 @@ app.get('/api/status', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', async () => {
   await initializePool();
-  console.log(`🚀 Backend corriendo en http://localhost:${PORT}`);
+  console.log(`Backend corriendo en http://localhost:${PORT}`);
 });

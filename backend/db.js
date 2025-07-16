@@ -18,11 +18,11 @@ async function connectWithRetry() {
       });
 
       await pool.query('SELECT 1'); // prueba de conexión
-      console.log('✅ Conexión exitosa a la base de datos');
+      console.log('Conexión exitosa a la base de datos');
       return pool;
     } catch (err) {
       retries++;
-      console.error(`❌ Error al conectar (${retries}/${maxRetries}): ${err.message}`);
+      console.error(`Error al conectar (${retries}/${maxRetries}): ${err.message}`);
       if (retries >= maxRetries) throw err;
       await wait(2000 * retries); // espera progresiva
     }
