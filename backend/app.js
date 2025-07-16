@@ -1,51 +1,54 @@
 const express = require('express');
 const cors = require('cors');
+const { Pool } = require('pg');
+
 const app = express();
 const PORT = 3000;
-
-const { Pool } = require('pg');
 
 let pool;
 
 async function initializePool() {
-  try {
-    // Intentar conexión al primario
-    pool = new Pool({
-      host: process.env.DB_HOST || 'postgres_primary',
-      user: process.env.DB_USER || 'admin',
-      password: process.env.DB_PASSWORD || 'admin123',
-      database: process.env.DB_NAME || 'systembank',
-      port: process.env.DB_PORT || 5432,
-    });
-    await pool.query('SELECT 1');
-    console.log('Conectado a la base de datos primaria');
-  } catch (error) {
-    console.warn('Error con la base de datos primaria. Intentando secundaria...');
-    // Intentar conexión al secundario
-    pool = new Pool({
-      host: 'postgres_secondary',
-      user: process.env.DB_USER || 'admin',
-      password: process.env.DB_PASSWORD || 'admin123',
-      database: process.env.DB_NAME || 'systembank',
-      port: process.env.DB_PORT || 5432,
-    });
-    try {
-      await pool.query('SELECT 1');
-      console.log('Conectado a la base de datos secundaria');
-    } catch (err) {
-      console.error('No se pudo conectar a ninguna base de datos');
-      process.exit(1);
+  const maxRetries = 5;
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  const tryConnect = async (host, label) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Intentando conexión a ${label} (intento ${attempt}/${maxRetries})...`);
+        const tempPool = new Pool({
+          host,
+          user: process.env.DB_USER || 'admin',
+          password: process.env.DB_PASSWORD || 'admin123',
+          database: process.env.DB_NAME || 'systembank',
+          port: process.env.DB_PORT || 5432,
+        });
+
+        await tempPool.query('SELECT 1');
+        console.log(`✅ Conexión exitosa a ${label}`);
+        return tempPool;
+      } catch (error) {
+        console.error(`❌ Fallo al conectar con ${label}: ${error.message}`);
+        await wait(1000 * attempt);
+      }
     }
+    return null;
+  };
+
+  pool = await tryConnect('postgres_primary', 'base de datos primaria');
+  if (!pool) {
+    console.warn('⚠️ No se pudo conectar a la base primaria. Probando con la secundaria...');
+    pool = await tryConnect('postgres_secondary', 'base de datos secundaria');
+  }
+
+  if (!pool) {
+    console.error('🛑 No se pudo conectar a ninguna base de datos. Abortando backend.');
+    process.exit(1);
   }
 }
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-/**
- * CLIENTES
- */
 app.get('/api/clientes', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM clientes');
@@ -109,9 +112,6 @@ app.get('/api/clientes/cedula/:cedula', (req, res) => {
   });
 });
 
-/**
- * CUENTAS
- */
 app.post('/api/cuentas', async (req, res) => {
   const { numero_cuenta, cliente_id, saldo } = req.body;
 
@@ -153,9 +153,6 @@ app.get('/api/cuentas/cedula/:cedula', async (req, res) => {
   }
 });
 
-/**
- * TRANSFERENCIAS
- */
 app.post('/api/transferencias', async (req, res) => {
   const { numero_origen, numero_destino, monto } = req.body;
 
@@ -163,7 +160,6 @@ app.post('/api/transferencias', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Obtener cuentas por número
     const origenRes = await client.query('SELECT id, saldo FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_origen]);
     const destinoRes = await client.query('SELECT id FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_destino]);
 
@@ -176,17 +172,14 @@ app.post('/api/transferencias', async (req, res) => {
     const destinoId = destinoRes.rows[0].id;
     const saldoOrigen = origenRes.rows[0].saldo;
 
-    // Verificar fondos
     if (saldoOrigen < monto) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Fondos insuficientes' });
     }
 
-    // Actualizar saldos
     await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, origenId]);
     await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, destinoId]);
 
-    // Registrar transferencia
     const result = await client.query(
       'INSERT INTO transferencias (origen, destino, monto, fecha) VALUES ($1, $2, $3, NOW()) RETURNING *',
       [origenId, destinoId, monto]
@@ -203,9 +196,6 @@ app.post('/api/transferencias', async (req, res) => {
   }
 });
 
-// ========================
-// DEPÓSITOS
-// ========================
 app.post('/api/depositos', async (req, res) => {
   const { numero_cuenta, monto } = req.body;
 
@@ -213,7 +203,6 @@ app.post('/api/depositos', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Buscar la cuenta por su número
     const cuentaRes = await client.query('SELECT id FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_cuenta]);
 
     if (cuentaRes.rows.length === 0) {
@@ -223,10 +212,8 @@ app.post('/api/depositos', async (req, res) => {
 
     const cuenta_id = cuentaRes.rows[0].id;
 
-    // Actualizar saldo
     await client.query('UPDATE cuentas SET saldo = saldo + $1 WHERE id = $2', [monto, cuenta_id]);
 
-    // Registrar depósito
     const result = await client.query(
       'INSERT INTO depositos (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
       [cuenta_id, monto]
@@ -243,9 +230,6 @@ app.post('/api/depositos', async (req, res) => {
   }
 });
 
-// ========================
-// RETIROS
-// ========================
 app.post('/api/retiros', async (req, res) => {
   const { numero_cuenta, monto } = req.body;
 
@@ -253,7 +237,6 @@ app.post('/api/retiros', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Buscar la cuenta por su número
     const cuentaRes = await client.query('SELECT id, saldo FROM cuentas WHERE numero_cuenta = $1 FOR UPDATE', [numero_cuenta]);
 
     if (cuentaRes.rows.length === 0) {
@@ -264,16 +247,13 @@ app.post('/api/retiros', async (req, res) => {
     const cuenta_id = cuentaRes.rows[0].id;
     const saldoActual = cuentaRes.rows[0].saldo;
 
-    // Verificar si hay saldo suficiente
     if (saldoActual < monto) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Fondos insuficientes' });
     }
 
-    // Actualizar saldo
     await client.query('UPDATE cuentas SET saldo = saldo - $1 WHERE id = $2', [monto, cuenta_id]);
 
-    // Registrar retiro
     const result = await client.query(
       'INSERT INTO retiros (cuenta_id, monto) VALUES ($1, $2) RETURNING *',
       [cuenta_id, monto]
@@ -290,9 +270,6 @@ app.post('/api/retiros', async (req, res) => {
   }
 });
 
-// ========================
-// HISTORIAL TRANSFERENCIAS
-// ========================
 app.get('/api/transferencias', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -318,9 +295,6 @@ app.get('/api/transferencias', async (req, res) => {
   }
 });
 
-// ========================
-// HISTORIAL DEPÓSITOS
-// ========================
 app.get('/api/depositos', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -342,9 +316,6 @@ app.get('/api/depositos', async (req, res) => {
   }
 });
 
-// ========================
-// HISTORIAL RETIROS
-// ========================
 app.get('/api/retiros', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -370,8 +341,7 @@ app.get('/api/status', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-
 app.listen(PORT, '0.0.0.0', async () => {
   await initializePool();
-  console.log(`Servidor backend corriendo en puerto ${PORT}`);
+  console.log(`🚀 Backend corriendo en http://localhost:${PORT}`);
 });
