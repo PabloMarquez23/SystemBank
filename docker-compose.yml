@@ -101,6 +101,7 @@ services:
       - nginx
     networks:
       - systembank_net
+    
 
 volumes:
   postgres_master_data:

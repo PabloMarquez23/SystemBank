@@ -30,4 +30,3 @@ Una vez levantado el entorno, accede desde tu navegador a:
 http://localhost:8080
 ```
 
-```

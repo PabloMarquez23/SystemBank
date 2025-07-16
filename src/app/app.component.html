@@ -1,3 +1,8 @@
+<!-- ALERTA si falla algún backend -->
+<div *ngIf="errorMsg" class="alerta">
+  {{ errorMsg }}
+</div>
+
 <h1>SystemBank</h1>
 <nav>
   <a routerLink="/clientes" routerLinkActive="active">Clientes</a> |

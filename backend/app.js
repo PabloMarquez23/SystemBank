@@ -366,6 +366,10 @@ app.get('/api/retiros', async (req, res) => {
   }
 });
 
+app.get('/api/status', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 
 app.listen(PORT, '0.0.0.0', async () => {
   await initializePool();
