@@ -1,29 +1,36 @@
 <h2>Gestión de Clientes</h2>
 
+<!-- ⚠ Mensaje si está en modo solo lectura -->
+<div *ngIf="soloLectura" style="color: red; margin-bottom: 10px;">
+  🔒 Modo solo lectura activado. No se pueden realizar modificaciones.
+</div>
+
+<!-- FORMULARIO PARA AGREGAR -->
 <form (ngSubmit)="agregarCliente()" *ngIf="!editando">
   <input [(ngModel)]="nuevoCliente.cedula" name="cedula" placeholder="Cédula" required>
   <input [(ngModel)]="nuevoCliente.nombre" name="nombre" placeholder="Nombre" required>
   <input [(ngModel)]="nuevoCliente.apellido" name="apellido" placeholder="Apellido" required>
   <input [(ngModel)]="nuevoCliente.correo" name="correo" placeholder="Correo" required>
   <input [(ngModel)]="nuevoCliente.direccion" name="direccion" placeholder="Dirección" required>
-  <button type="submit">Agregar</button>
+  <button type="submit" [disabled]="soloLectura">Agregar</button>
 </form>
 
+<!-- FORMULARIO PARA EDITAR -->
 <form (ngSubmit)="actualizarCliente()" *ngIf="editando">
   <input [(ngModel)]="nuevoCliente.cedula" name="cedula" placeholder="Cédula" required>
   <input [(ngModel)]="nuevoCliente.nombre" name="nombre" placeholder="Nombre" required>
   <input [(ngModel)]="nuevoCliente.apellido" name="apellido" placeholder="Apellido" required>
   <input [(ngModel)]="nuevoCliente.correo" name="correo" placeholder="Correo" required>
   <input [(ngModel)]="nuevoCliente.direccion" name="direccion" placeholder="Dirección" required>
-  <button type="submit">Actualizar</button>
+  <button type="submit" [disabled]="soloLectura">Actualizar</button>
   <button type="button" (click)="cancelarEdicion()">Cancelar</button>
 </form>
 
-
+<!-- LISTADO DE CLIENTES -->
 <ul>
   <li *ngFor="let cliente of clientes">
     {{ cliente.cedula }} - {{ cliente.nombre }} {{ cliente.apellido }} - {{ cliente.correo }} - {{ cliente.direccion }}
-    <button (click)="editarCliente(cliente)">Modificar</button>
-    <button (click)="eliminarCliente(cliente.id)">Eliminar</button>
+    <button (click)="editarCliente(cliente)" [disabled]="soloLectura">Modificar</button>
+    <button (click)="eliminarCliente(cliente.id)" [disabled]="soloLectura">Eliminar</button>
   </li>
 </ul>

@@ -6,6 +6,27 @@ const app = express();
 const PORT = 3000;
 
 let pool;
+let soloLectura = false;
+async function intentarReconexion() {
+  console.warn('Intentando reconectar al secundario...');
+  try {
+    const nuevaPool = new Pool({
+      host: 'postgres_secondary',
+      user: process.env.DB_USER || 'admin',
+      password: process.env.DB_PASSWORD || 'admin123',
+      database: process.env.DB_NAME || 'systembank',
+      port: process.env.DB_PORT || 5432,
+    });
+
+    await nuevaPool.query('SELECT 1');
+    pool = nuevaPool;
+    soloLectura = true;
+    console.log('Conectado a base secundaria (modo solo lectura)');
+  } catch (err) {
+    console.error('Fallo al reconectar al secundario:', err.message);
+  }
+}
+
 
 async function initializePool() {
   const maxRetries = 5;
@@ -38,6 +59,7 @@ async function initializePool() {
   if (!pool) {
     console.warn('No se pudo conectar a la base primaria. Probando con la secundaria...');
     pool = await tryConnect('postgres_secondary', 'base de datos secundaria');
+    if (pool) soloLectura = true; // estamos en modo solo lectura
   }
 
   if (!pool) {
@@ -54,10 +76,25 @@ app.get('/api/clientes', async (req, res) => {
     const result = await pool.query('SELECT * FROM clientes');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Error al obtener clientes:', err.message);
+
+    // Reintento dinámico si es error de conexión
+    if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.message.includes('timeout')) {
+      await intentarReconexion();
+
+      // Reintentar una vez la consulta
+      try {
+        const result = await pool.query('SELECT * FROM clientes');
+        return res.json(result.rows);
+      } catch (e2) {
+        console.error('Reintento fallido tras reconectar:', e2.message);
+      }
+    }
+
     res.status(500).json({ error: 'Error al obtener clientes' });
   }
 });
+
 
 app.post('/api/clientes', (req, res) => {
   const { cedula, nombre, apellido, correo, direccion } = req.body;
@@ -338,7 +375,7 @@ app.get('/api/retiros', async (req, res) => {
 });
 
 app.get('/api/status', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ status: 'ok', soloLectura });
 });
 
 app.listen(PORT, '0.0.0.0', async () => {

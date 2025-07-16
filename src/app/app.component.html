@@ -1,6 +1,11 @@
-<!-- ALERTA si falla algún backend -->
-<div *ngIf="errorMsg" class="alerta">
+<!-- ⚠️ ALERTA visual si hay error de backend -->
+<div *ngIf="errorMsg" class="alerta" style="background-color: #f8d7da; color: #721c24; padding: 10px; border: 1px solid #f5c6cb; margin-bottom: 10px;">
   {{ errorMsg }}
+</div>
+
+<!-- 🔒 ALERTA visual de solo lectura -->
+<div *ngIf="soloLectura" style="background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; text-align: center; margin-bottom: 10px;">
+  🔒 Sistema en modo <strong>solo lectura</strong>. Las operaciones de escritura están deshabilitadas temporalmente.
 </div>
 
 <h1>SystemBank</h1>
